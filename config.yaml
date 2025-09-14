@@ -1,13 +1,8 @@
 # Arquivo principal de configuração da ferramenta
 
 pipeline:
-  # O log de entrada agora aponta para a pasta logs/Input/
   input_log_file: "logs/input/meu_rastro.log"
-  
-  # O arquivo intermediário pode ser salvo na pasta principal de logs
   intermediate_fei_file: "logs/fei_events.json"
-  
-  # O log de saída agora aponta para a pasta logs/output/
   output_log_file: "logs/output/rastro_recriado.log"
 
 components:

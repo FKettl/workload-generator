@@ -15,16 +15,13 @@ class RedisParser(IParser):
         print(f"RedisMonitorParser inicializado com granularidade de timestamp: {self.timestamp_granularity}")
 
     def _parse_line_to_fei(self, line: str) -> FEIEvent | None:
-        # ... (código interno da função)
         try:
             timestamp_str = line.strip().split(' ', 1)[0]
             timestamp_float = float(timestamp_str)
-            
-            # --- LÓGICA DA GRANULARIDADE APLICADA AQUI ---
+            # Aplica a granularidade ao timestamp
             timestamp = round(timestamp_float, self.timestamp_granularity)
-            
-            # ... (resto da lógica para extrair op, alvo, etc.)
-            # (O código abaixo está resumido para focar na mudança)
+            # Extrai os argumentos entre aspas
+            # Exemplo de linha: 1697041234.567890 "SET" "mykey" "myvalue"
             rest_of_line = line.strip().split(' ', 1)[1]
             quoted_parts = self._ARGS_REGEX.findall(rest_of_line)
             tipo_operacao = quoted_parts[0].upper()
@@ -43,8 +40,7 @@ class RedisParser(IParser):
             return None
             
     def parse(self, file_path: str) -> List[FEIEvent]:
-        # ... (código da função parse continua o mesmo)
-        print(f"Usando o RedisMonitorParser para analisar '{file_path}'...")
+        print(f"Usando o RedisParser para analisar '{file_path}'...")
         events = []
         with open(file_path, 'r', encoding='utf-8') as f:
             for line in f:

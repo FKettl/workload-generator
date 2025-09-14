@@ -8,7 +8,6 @@ from src.generators.replay_generator import ReplayGenerator
 from typing import Dict, Any
 
 class ParserFactory:
-    """Fábrica responsável apenas pela criação de Parsers."""
     def create_parser(self, config: Dict[str, Any]) -> IParser:
         parser_type = config.get('type')
         if parser_type == 'redis':
@@ -18,14 +17,12 @@ class ParserFactory:
         raise ValueError(f"Parser do tipo '{parser_type}' não é suportado.")
 
 class SaverFactory:
-    # ... (sem mudanças)
     def create_saver(self, saver_type: str) -> ISaver:
         if saver_type == 'json':
             return JsonSaver()
         raise ValueError(f"Saver do tipo '{saver_type}' não é suportado.")
 
 class GeneratorFactory:
-    # ... (sem mudanças)
     def create_generator(self, generator_type: str) -> IGenerator:
         if generator_type == 'replay':
             return ReplayGenerator()
