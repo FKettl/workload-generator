@@ -1,5 +1,4 @@
 # Arquivo principal de configuração da ferramenta
-
 pipeline:
   input_log_file: "logs/input/meu_rastro.log"
   intermediate_fei_file: "logs/fei_events.json"
@@ -15,3 +14,9 @@ components:
     
   generator:
     type: "replay"
+  
+  executor:
+    type: "redis"
+    host: "localhost"
+    port: 6379
+    max_workers: 1

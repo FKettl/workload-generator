@@ -1,29 +1,31 @@
 # src/parsers/redis_parser.py
 import re
+import sys
 from typing import List
 from src.models.fei import FEIEvent
 from src.parsers.base import IParser
 
 class RedisParser(IParser):
+    _LOG_LINE_REGEX = re.compile(r'^(\S+)\s+\[([^\]]+)\]\s+(.*)$')
     _ARGS_REGEX = re.compile(r'"([^"]*)"')
 
     def __init__(self, timestamp_granularity: int):
-        """
-        Inicializa o parser com a granularidade desejada para o timestamp.
-        """
         self.timestamp_granularity = timestamp_granularity
-        print(f"RedisMonitorParser inicializado com granularidade de timestamp: {self.timestamp_granularity}")
+        print(f"RedisParser inicializado com granularidade de timestamp: {self.timestamp_granularity}")
 
     def _parse_line_to_fei(self, line: str) -> FEIEvent | None:
+        match = self._LOG_LINE_REGEX.match(line.strip())
+        if not match:
+            return None
+
         try:
-            timestamp_str = line.strip().split(' ', 1)[0]
-            timestamp_float = float(timestamp_str)
-            # Aplica a granularidade ao timestamp
-            timestamp = round(timestamp_float, self.timestamp_granularity)
-            # Extrai os argumentos entre aspas
-            # Exemplo de linha: 1697041234.567890 "SET" "mykey" "myvalue"
-            rest_of_line = line.strip().split(' ', 1)[1]
-            quoted_parts = self._ARGS_REGEX.findall(rest_of_line)
+            timestamp_str, client_id, command_str = match.groups()
+            timestamp = round(float(timestamp_str), self.timestamp_granularity)
+
+            quoted_parts = self._ARGS_REGEX.findall(command_str)
+            if not quoted_parts or len(quoted_parts) < 2:
+                return None
+
             tipo_operacao = quoted_parts[0].upper()
             recurso_alvo = quoted_parts[1]
             additional_args = quoted_parts[2:]
@@ -31,6 +33,7 @@ class RedisParser(IParser):
 
             return FEIEvent(
                 timestamp=timestamp,
+                client_id=client_id,
                 tipo_operacao=tipo_operacao,
                 recurso_alvo=recurso_alvo,
                 tamanho_payload=payload_size,
@@ -43,8 +46,12 @@ class RedisParser(IParser):
         print(f"Usando o RedisParser para analisar '{file_path}'...")
         events = []
         with open(file_path, 'r', encoding='utf-8') as f:
-            for line in f:
+            for line_num, line in enumerate(f, 1):
+                if not line.strip():
+                    continue
                 event = self._parse_line_to_fei(line)
                 if event:
                     events.append(event)
+                else:
+                    print(f"[AVISO] Linha {line_num} ignorada por não corresponder ao formato esperado: {line.strip()}", file=sys.stderr)
         return events

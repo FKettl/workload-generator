@@ -1,0 +1,13 @@
+-- Check if i should write all in english, all in portugues or its okay to have commentary in portugues 
+and the rest in english
+-- Check for python3 clean code patterns (Function description, etc...) 
+-- Check for the time precision issue of the executor
+-- Assure the correctness of the multithreading executor
+-- Check the necessity of using venv
+-- Expand all modules with new implementations
+-- Change the way to run the project using a bash script and divide the pipeline
+-- Improve the generator to make an statical analysis
+-- Improve the executor to really make a benchmark
+-- Start validating results and write the TCC.
+-- Create git hub README, repo description and check which licence to use.
+-- Check for clean code and project architecture improvements

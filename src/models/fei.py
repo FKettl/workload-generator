@@ -8,6 +8,7 @@ class FEIEvent(TypedDict):
     """
     timestamp: float
     tipo_operacao: str
+    client_id: str
     recurso_alvo: str
     tamanho_payload: int
     dados_adicionais: Dict[str, Any]

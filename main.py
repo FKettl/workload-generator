@@ -1,7 +1,10 @@
 # main.py
 import sys
 from src.config_loader import load_config
-from src.factories import ParserFactory, SaverFactory, GeneratorFactory
+from src.parsers.factory import ParserFactory
+from src.savers.factory import SaverFactory
+from src.generators.factory import GeneratorFactory
+from src.executors.factory import ExecutorFactory
 
 def main():
     """
@@ -22,8 +25,8 @@ def main():
     parser_factory = ParserFactory()
     saver_factory = SaverFactory()
     generator_factory = GeneratorFactory()
+    executor_factory = ExecutorFactory()
 
-    # --- Estágio 1: PARSE ---
     print("\n--- INICIANDO ESTÁGIO 1: PARSE ---")
     try:
         parser_config = components_config.get('parser', {})
@@ -36,12 +39,11 @@ def main():
         print(f"ERRO no estágio de Parse: {e}", file=sys.stderr)
         sys.exit(1)
 
-    # --- Estágio 2: SAVE ---
     print("\n--- INICIANDO ESTÁGIO 2: SAVE ---")
     try:
-        saver_type = components_config.get('saver', {}).get('type')
-        saver = saver_factory.create_saver(saver_type)
-        
+        saver_config = components_config.get('saver', {})
+        saver = saver_factory.create_saver(saver_config)
+
         intermediate_file = pipeline_config.get('intermediate_fei_file')
         saver.save(lista_de_eventos_fei, intermediate_file)
         print(f"Eventos FEI salvos em '{intermediate_file}'.")
@@ -49,12 +51,11 @@ def main():
         print(f"ERRO no estágio de Save: {e}", file=sys.stderr)
         sys.exit(1)
 
-    # --- Estágio 3: GENERATE ---
     print("\n--- INICIANDO ESTÁGIO 3: GENERATE ---")
     try:
-        generator_type = components_config.get('generator', {}).get('type')
-        generator = generator_factory.create_generator(generator_type)
-        
+        generator_config = components_config.get('generator', {})
+        generator = generator_factory.create_generator(generator_config)
+
         intermediate_file = pipeline_config.get('intermediate_fei_file')
         output_file = pipeline_config.get('output_log_file')
         generator.generate(intermediate_file, output_file)
@@ -62,7 +63,20 @@ def main():
     except Exception as e:
         print(f"ERRO no estágio de Generate: {e}", file=sys.stderr)
         sys.exit(1)
+
+    print("\n--- INICIANDO ESTÁGIO 4: EXECUTE ---")
+    try:
+        executor_config = components_config.get('executor', {})
+        executor = executor_factory.create_executor(executor_config)
         
+        # O arquivo de saída do gerador é a entrada para o executor
+        synthetic_trace_file = pipeline_config.get('output_log_file')
+        executor.execute(synthetic_trace_file)
+        print(f"Execução do benchmark concluída.")
+    except Exception as e:
+        print(f"ERRO no estágio de Execute: {e}", file=sys.stderr)
+        sys.exit(1)
+
     print("\n--- PIPELINE COMPLETO EXECUTADO COM SUCESSO! ---")
 
 if __name__ == "__main__":
