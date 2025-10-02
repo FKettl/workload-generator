@@ -1,7 +1,6 @@
-# src/generators/replay_generator.py
-
 import json
-from src.generators.base import IGenerator
+from ..base import IGenerator
+
 
 class ReplayGenerator(IGenerator):
     """
@@ -18,9 +17,9 @@ class ReplayGenerator(IGenerator):
 
         with open(output_log_path, 'w', encoding='utf-8') as f:
             for event in events:
-                op = f'"{event["tipo_operacao"]}"'
-                alvo = f'"{event["recurso_alvo"]}"'
-                additional_args = event['dados_adicionais'].get('raw_args', [])
+                op = f'"{event["op_type"]}"'
+                alvo = f'"{event["target"]}"'
+                additional_args = event['additional_data'].get('raw_args', [])
                 formatted_args = [f'"{arg}"' for arg in additional_args]
                 full_command = ' '.join([op, alvo] + formatted_args)
                 new_line = f"{event['timestamp']:.6f} [{event['client_id']}] {full_command.strip()}"

@@ -1,8 +1,8 @@
-# Arquivo principal de configuração da ferramenta
+# Change the configuration below to adjust the project
 pipeline:
-  input_log_file: "logs/input/meu_rastro.log"
-  intermediate_fei_file: "logs/fei_events.json"
-  output_log_file: "logs/output/rastro_recriado.log"
+  input_log_file: "logs/input/trace.log"
+  fei_file: "logs/fei/fei_events.json"
+  output_log_file: "logs/output/recreated_trace.log"
 
 components:
   parser:
@@ -20,3 +20,4 @@ components:
     host: "localhost"
     port: 6379
     max_workers: 1
+    num_events_to_generate: 100000

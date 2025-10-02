@@ -1,6 +1,3 @@
--- Check if i should write all in english, all in portugues or its okay to have commentary in portugues 
-and the rest in english
--- Check for python3 clean code patterns (Function description, etc...) 
 -- Check for the time precision issue of the executor
 -- Assure the correctness of the multithreading executor
 -- Check the necessity of using venv

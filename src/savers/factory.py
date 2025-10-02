@@ -1,12 +1,14 @@
-# src/savers/factory.py
 from typing import Dict, Any
 from .base import ISaver
-from .json_saver import JsonSaver
+
 
 class SaverFactory:
-    """Fábrica responsável apenas pela criação de Savers."""
+    """
+    Factory for creating Saver instances.
+    """
     def create_saver(self, config: Dict[str, Any]) -> ISaver:
         saver_type = config.get('type')
         if saver_type == 'json':
+            from .json.json_saver import JsonSaver
             return JsonSaver()
-        raise ValueError(f"Saver do tipo '{saver_type}' não é suportado.")
+        raise ValueError(f"Saver type: '{saver_type}' is not supported.")
