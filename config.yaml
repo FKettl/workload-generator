@@ -1,23 +1,24 @@
-# Change the configuration below to adjust the project
+# config.yaml
 pipeline:
+  # Input for the Python pipeline
   input_log_file: "logs/input/trace.log"
-  fei_file: "logs/fei/fei_events.json"
-  output_log_file: "logs/output/recreated_trace.log"
+  # Output of the Python pipeline, Input for the C++ executor
+  generator_log_file: "logs/output/synthetic_trace.log"
+  debug_model_output_file: "logs/output/characterization_model.json"
+
 
 components:
   parser:
     type: "redis"
     timestamp_granularity: 5
-    
-  saver:
-    type: "json"
-    
+
   generator:
-    type: "replay"
+    type: "heatmap"
+    percentage_interval: 1
+    simulation_duration_s: 120
   
   executor:
     type: "redis"
-    host: "localhost"
+    host: "127.0.0.1"
     port: 6379
-    max_workers: 1
-    num_events_to_generate: 100000
+    max_workers: 10

@@ -58,4 +58,4 @@ http:
 	$(MAKE) $(TARGET) \
 		SOURCES="$(STATIC_SOURCES) http/http.cpp" \
 		CXXFLAGS="$(CXXFLAGS_BASE) -DBUILD_HTTP_STRATEGY" \
-		LIBS="-lcurl $(LIBS_BASE)" # Exemplo com a libcurl
+		LIBS="-lcurl $(LIBS_BASE)"

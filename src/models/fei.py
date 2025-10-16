@@ -1,13 +1,16 @@
-from typing import TypedDict, List, Any, Dict
+from typing import Any, Dict, TypedDict, List
 
 
 class FEIEvent(TypedDict):
     """
-    Define the structure of the FEI event.
+    Defines the structure of the Intermediate Event Format (FEI).
+
+    This is the canonical data structure that connects the different stages
+    of the Python pipeline (Parser, Generator, etc.).
     """
     timestamp: float
-    op_type: str
     client_id: str
+    op_type: str
+    semantic_type: List[str]
     target: str
-    payload_size: int
-    additional_args: Dict[str, Any]
+    additional_data: Dict[str, Any]

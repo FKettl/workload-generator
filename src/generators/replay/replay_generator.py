@@ -1,27 +1,22 @@
-import json
-from ..base import IGenerator
+from typing import List
+from ..interfaces import IGenerator
+from ...models.fei import FEIEvent
 
 
 class ReplayGenerator(IGenerator):
     """
-    Uma estratégia de geração simples que recria o log original
-    a partir de um arquivo FEI, preservando o client_id.
+    A simple pass-through strategy that returns the input event list unchanged.
     """
-    def generate(self, input_fei_path: str, output_log_path: str):
-        print(f"Usando ReplayGenerator para gerar '{output_log_path}'...")
-        
-        with open(input_fei_path, 'r', encoding='utf-8') as f:
-            events = json.load(f)
 
-        print(f"Lidos {len(events)} eventos de '{input_fei_path}'.")
+    def generate(self, events: List[FEIEvent]) -> List[FEIEvent]:
+        """
+        Returns the input list of events without modification.
 
-        with open(output_log_path, 'w', encoding='utf-8') as f:
-            for event in events:
-                op = f'"{event["op_type"]}"'
-                alvo = f'"{event["target"]}"'
-                additional_args = event['additional_data'].get('raw_args', [])
-                formatted_args = [f'"{arg}"' for arg in additional_args]
-                full_command = ' '.join([op, alvo] + formatted_args)
-                new_line = f"{event['timestamp']:.6f} [{event['client_id']}] {full_command.strip()}"
-                
-                f.write(new_line + '\n')
+        Args:
+            events: The list of input FEIEvent objects.
+
+        Returns:
+            The same list of FEIEvent objects.
+        """
+        print(f"ReplayGenerator: Passing through {len(events)} events.")
+        return events

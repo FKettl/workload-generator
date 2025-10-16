@@ -1,21 +1,27 @@
 #include "redis.h"
 #include <sw/redis++/redis++.h>
-#include <chrono>
 #include <vector>
 #include <iterator>
 #include <iostream>
+#include <yaml-cpp/yaml.h>
 
 RedisExecutorStrategy::RedisExecutorStrategy() = default;
 RedisExecutorStrategy::~RedisExecutorStrategy() = default;
 
-void RedisExecutorStrategy::connect() {
-    m_redis_client = std::make_unique<sw::redis::Redis>("tcp://127.0.0.1:6379");
+void RedisExecutorStrategy::connect(const YAML::Node& config) {
+    // Read host and port from the provided configuration node
+    const std::string host = config["host"].as<std::string>();
+    const int port = config["port"].as<int>();
+
+    // Build the connection string dynamically
+    std::string connection_string = "tcp://" + host + ":" + std::to_string(port);
+    std::cout << "Connecting to Redis at: " << connection_string << std::endl;
+
+    m_redis_client = std::make_unique<sw::redis::Redis>(connection_string);
 }
 
 ExecutionResult RedisExecutorStrategy::execute(const Command& command) {
     try {
-        auto op_start = std::chrono::steady_clock::now();
-
         const auto& args_map = command.additional_data;
         const auto it = args_map.find("raw_args");
         const std::vector<std::string> raw_args = (it != args_map.end()) ? it->second : std::vector<std::string>();
@@ -36,24 +42,88 @@ ExecutionResult RedisExecutorStrategy::execute(const Command& command) {
             m_redis_client->get(command.target);
         } else if (command.op_type == "HGETALL") {
             std::vector<std::pair<std::string, std::string>> result;
-            // Passamos o container para a função usando um std::back_inserter.
             m_redis_client->hgetall(command.target, std::back_inserter(result));
         } else if (command.op_type == "DEL") {
             m_redis_client->del(command.target);
         } else if (command.op_type == "ZADD") {
-            // ZADD espera (score, member). O rastro do YCSB pode ter score científico.
             if (raw_args.size() >= 2) {
-                // A biblioteca espera (member, score)
                 m_redis_client->zadd(command.target, raw_args[1], std::stod(raw_args[0]));
             }
         }
-        // Adicione outros comandos do Redis aqui conforme necessário...
-
-        auto op_end = std::chrono::steady_clock::now();
-        auto latency = std::chrono::duration_cast<std::chrono::nanoseconds>(op_end - op_start).count();
-        return {latency, true};
+        // For more commands, add additional else-if blocks here.
+        return {0, true};
     } catch (const std::exception& e) {
         std::cerr << "ERRO ao executar comando [" << command.op_type << "] no alvo [" << command.target << "]: " << e.what() << std::endl;
         return {0, false};
     }
+}
+
+std::vector<std::string> RedisExecutorStrategy::parse_command_args(const std::string& command_str) {
+    std::vector<std::string> args;
+    std::string current_arg;
+    bool in_quotes = false;
+    
+    size_t i = 0;
+    while (i < command_str.length()) {
+        char c = command_str[i];
+
+        if (!in_quotes) {
+            if (c == '"') {
+                in_quotes = true;
+            }
+            i++;
+            continue;
+        }
+
+        bool is_end_of_string = (i + 1 == command_str.length());
+        bool is_separator = (i + 2 < command_str.length() && command_str[i+1] == ' ' && command_str[i+2] == '"');
+
+        if (c == '"' && (is_end_of_string || is_separator)) {
+            in_quotes = false;
+            args.push_back(current_arg);
+            current_arg.clear();
+        } else {
+            current_arg += c;
+        }
+        i++;
+    }
+    return args;
+}
+
+
+std::optional<Task> RedisExecutorStrategy::parse_line(const std::string& log_line) {
+    static const std::regex line_splitter_regex(R"(^(\S+)\s+\[([^\]]+)\]\s+(.*)$)");
+    
+    std::smatch line_parts;
+    if (!std::regex_match(log_line, line_parts, line_splitter_regex)) {
+        std::cout << "Parse FAILED: Line does not match basic structure.\n" << std::endl;
+        return std::nullopt;
+    }
+
+    Task task;
+    try {
+        task.original_timestamp = std::stod(line_parts[1].str());
+    } catch (const std::invalid_argument&) {
+        std::cout << "Parse FAILED: Invalid timestamp.\n" << std::endl;
+        return std::nullopt;
+    }
+
+    task.command.client_id = line_parts[2].str();
+    
+    std::vector<std::string> all_args = parse_command_args(line_parts[3].str());
+    
+    if (all_args.empty()) {
+        std::cout << "Parse FAILED: No arguments found.\n" << std::endl;
+        return std::nullopt;
+    }
+
+    task.command.op_type = all_args[0];
+    if (all_args.size() > 1) {
+        task.command.target = all_args[1];
+    }
+    if (all_args.size() > 2) {
+        task.command.additional_data["raw_args"] = {all_args.begin() + 2, all_args.end()};
+    }
+
+    return task;
 }

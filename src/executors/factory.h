@@ -1,5 +1,5 @@
 #pragma once
-#include "base.h" // Atualizado
+#include "interfaces.h"
 #include <string>
 #include <memory>
 
