@@ -71,7 +71,7 @@ class RedisParser(IParser):
             op_type = all_args[0].upper()
             
             target, raw_args_list = self._dispatch_args(op_type, all_args)
-            
+            if op_type == "ZADD": target = ''
             semantic_type = self._OPERATION_SEMANTICS.get(op_type, self._DEFAULT_SEMANTIC_TYPE)
             
             if op_type == "CLIENT":
@@ -100,7 +100,7 @@ class RedisParser(IParser):
             # A lógica de escape é crucial para a saída.
             # Primeiro escapa as barras, depois as aspas.
             return f'"{arg}"'
-
+        if event["op_type"] == 'ZADD': event['target'] = '_indices'
         command_parts = [escape_arg(event["op_type"]), escape_arg(event["target"])]
         raw_args = event['additional_data'].get('raw_args', [])
         for arg in raw_args:

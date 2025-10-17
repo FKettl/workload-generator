@@ -10,14 +10,26 @@ RedisExecutorStrategy::~RedisExecutorStrategy() = default;
 
 void RedisExecutorStrategy::connect(const YAML::Node& config) {
     // Read host and port from the provided configuration node
-    const std::string host = config["host"].as<std::string>();
+const std::string host = config["host"].as<std::string>();
     const int port = config["port"].as<int>();
 
-    // Build the connection string dynamically
-    std::string connection_string = "tcp://" + host + ":" + std::to_string(port);
-    std::cout << "Connecting to Redis at: " << connection_string << std::endl;
+    // --- CORREÇÃO: Usa ConnectionOptions para configurar timeouts ---
+    sw::redis::ConnectionOptions connection_options;
+    connection_options.host = host;
+    connection_options.port = port;
 
-    m_redis_client = std::make_unique<sw::redis::Redis>(connection_string);
+    // Define um timeout de 1 segundo para operações de socket.
+    // Isso impede que o cliente fique preso indefinidamente no destrutor.
+    connection_options.socket_timeout = std::chrono::seconds(1);
+    
+    // Define um timeout de 1 segundo para a tentativa de conexão.
+    connection_options.connect_timeout = std::chrono::seconds(1);
+
+    std::cout << "Connecting to Redis at: tcp://" << host << ":" << port 
+              << " with 1s timeout" << std::endl;
+
+    // Cria o cliente Redis usando as opções de conexão configuradas
+    m_redis_client = std::make_unique<sw::redis::Redis>(connection_options);
 }
 
 ExecutionResult RedisExecutorStrategy::execute(const Command& command) {

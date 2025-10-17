@@ -1,5 +1,6 @@
 -- Assure the correctness of the multithreading executor
 -- Start validating results and write the TCC.
 -- Create git hub README, repo description and check which licence to use.
-
+-- expand/cycle
+-- heatmap de keys
 sudo docker exec -it meu-tcc-redis redis-cli

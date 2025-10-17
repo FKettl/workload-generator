@@ -82,7 +82,7 @@ class HeatmapGenerator(IGenerator):
             semantic_types = current_event['semantic_type']
             heatmap_counts[interval_start][op_type] += 1
 
-            all_targets.add(target)
+            if (target != ""): all_targets.add(target)
             all_client_ids.add(current_event['client_id'])
 
             if op_type not in all_op_semantics:
@@ -125,10 +125,11 @@ class HeatmapGenerator(IGenerator):
         """Sintetiza um novo traço de eventos usando padrões percentuais e localizados."""
         print(f"--- Synthesis Phase: Generating events for {self.simulation_duration_ms / 1000} seconds ---")
         synthetic_events: List[FEIEvent] = []
-        available_pool: Set[str] = set(model['initial_resource_pool'])
+        unseen_pool: Set[str] = set(model['initial_resource_pool'])
+        # Pool de chaves que existem na simulação e podem ser usadas.
+        available_pool: Set[str] = set()
+        # Pool de chaves que foram deletadas e podem ser recriadas.
         deleted_pool: Set[str] = set()
-        new_key_counter = 0
-        if not available_pool: available_pool.add("bootstrap_key_0")
 
         current_time_ms = 0.0
         start_ts_sec = 0 
@@ -163,22 +164,20 @@ class HeatmapGenerator(IGenerator):
                 interval_behaviors = model['op_behavior_probabilities'].get(int(interval_start), {})
                 op_behaviors = interval_behaviors.get(op_type, {'CREATE': 1.0}) # Default to CREATE if no data
                 create_prob = op_behaviors.get('CREATE', 0)
-                
-                # Roll the dice: should this be a CREATE or an UPDATE?
+
                 if random.random() < create_prob:
-                    # --- Perform a CREATE action ---
-                    if deleted_pool and random.random() < 0.5:
+                    if unseen_pool:
+                        target = unseen_pool.pop()
+                    elif deleted_pool:
                         target = deleted_pool.pop()
                     else:
-                        target = f"synthetic_key_{new_key_counter}"
-                        new_key_counter += 1
+                        continue
+                    
                     available_pool.add(target)
                 else:
-                    # --- Perform an UPDATE action ---
-                    if not available_pool: continue # Cannot update if pool is empty
+                    if not available_pool: continue
                     target = random.choice(list(available_pool))
 
-            # Handle unambiguous READ operations
             elif "READ" in semantic_type_list:
                 if not available_pool: continue
                 target = random.choice(list(available_pool))
@@ -192,7 +191,6 @@ class HeatmapGenerator(IGenerator):
 
             if target is None: continue
 
-            # Delegated Argument Generation (with context)
             new_raw_args = self.parser.generate_args(
                 op_type, target, available_pool=list(available_pool)
             )

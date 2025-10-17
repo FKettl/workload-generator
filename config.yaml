@@ -15,7 +15,7 @@ components:
   generator:
     type: "heatmap"
     percentage_interval: 1
-    simulation_duration_s: 120
+    simulation_duration_s: 111
   
   executor:
     type: "redis"
