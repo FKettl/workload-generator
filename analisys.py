@@ -161,17 +161,17 @@ if __name__ == '__main__':
     # Log capturado no notebook enquanto o executor C++ rodava
     # Você precisará gerar este arquivo usando 'redis-cli MONITOR > log_recebido.log'
     # no notebook durante o experimento.
-    #path_log_recebido = 'log_recebido.log'
+    path_log_recebido = 'logs/output/executor_heatmap_final.log'
     # --- FIM DA CONFIGURAÇÃO ---
 
     df_inicial = parse_log_to_dataframe(path_log_inicial)
     df_gerado = parse_log_to_dataframe(path_log_gerado)
-    #df_recebido = parse_log_to_dataframe(path_log_recebido)
+    df_recebido = parse_log_to_dataframe(path_log_recebido)
 
     logs_data = {
         'Inicial (YCSB)': df_inicial,
         'Gerado (Ferramenta)': df_gerado,
-        #'Recebido (Executor)': df_recebido,
+        'Recebido (Executor)': df_recebido,
     }
     
     for name, df in logs_data.items():
