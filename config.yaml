@@ -14,9 +14,10 @@ components:
 
   generator:
     type: "heatmap"
-    percentage_interval: 1
-    simulation_duration_s: 120
-  
+    percentage_interval: 0.1
+    simulation_duration_s: 111
+    time_expansion_strategy: "cyclic"  # Can be either cyclic or expand
+
   executor:
     type: "redis"
     host: "127.0.0.1"
