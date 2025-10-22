@@ -22,7 +22,7 @@ class HeatmapGenerator(IGenerator):
     ):
         if not (0 < percentage_interval <= 100):
             raise ValueError(f"O intervalo percentual deve estar entre 0 (exclusivo) e 100.: {percentage_interval}")
-        if time_expansion_strategy not in ['cyclic', 'expand']:
+        if time_expansion_strategy not in ['cyclic', 'stretch']:
             raise ValueError(f"time_expansion_strategy must be 'cyclic' or 'stretch', not '{time_expansion_strategy}'")
 
         self.parser = parser
@@ -39,7 +39,7 @@ class HeatmapGenerator(IGenerator):
     def _characterize(self, events: List[FEIEvent]) -> Dict[str, Any]:
         """
         Analisa o rastro real, aprendendo a probabilidade de recursos DADO
-        um tipo de operação e um intervalo de tempo.
+        um tipo de operação e um intervalo de tempo, usando um índice inteiro.
         """
         print("--- Characterization Phase: Building model with command-specific resource patterns ---")
         if not events:
@@ -70,14 +70,14 @@ class HeatmapGenerator(IGenerator):
             if percentage_complete >= 100:
                 percentage_complete = Decimal("99.9999999999")
 
+            # --- CORREÇÃO: Usa um índice de intervalo inteiro como chave ---
             interval_index = int(percentage_complete // self.interval)
-
+            
             op_type = current_event['op_type']
             target = current_event['target']
 
-            # Popula a nova estrutura de contagem aninhada
             target_counts[interval_index][op_type][target] += 1
-
+            
             rounded_delta = round(float(delta_ms), 3)
             inter_arrival_counts[interval_index][rounded_delta] += 1
 
@@ -85,33 +85,29 @@ class HeatmapGenerator(IGenerator):
             all_client_ids.add(current_event['client_id'])
             if op_type not in all_op_semantics:
                 all_op_semantics[op_type] = current_event['semantic_type']
-
-        # --- CONVERSÃO PARA PROBABILIDADES COM CORREÇÃO DE TIPO ---
+    
+        # A conversão para probabilidades agora usa as chaves inteiras diretamente
         heatmap_probabilities = {}
-        for interval, op_data in target_counts.items():
+        for interval_idx, op_data in target_counts.items():
             total_ops_in_interval = sum(sum(op.values()) for op in op_data.values())
             if total_ops_in_interval > 0:
-                # Converte a chave do intervalo para int aqui
-                heatmap_probabilities[int(interval)] = {
+                heatmap_probabilities[interval_idx] = {
                     op: sum(targets.values()) / total_ops_in_interval
                     for op, targets in op_data.items()
                 }
 
         target_probabilities = defaultdict(dict)
-        for interval, op_data in target_counts.items():
-            # Converte a chave do intervalo para int aqui
-            int_interval = int(interval)
-            target_probabilities[int_interval] = {}
+        for interval_idx, op_data in target_counts.items():
+            target_probabilities[interval_idx] = {}
             for op_type, targets in op_data.items():
                 total_for_op = sum(targets.values())
                 if total_for_op > 0:
-                    target_probabilities[int_interval][op_type] = {
+                    target_probabilities[interval_idx][op_type] = {
                         target: count / total_for_op for target, count in targets.items()
                     }
 
         inter_arrival_probabilities = {
-            # Converte a chave do intervalo para int aqui
-            int(k): {delta: v / sum(cnts.values()) for delta, v in cnts.items()}
+            k: {delta: v / sum(cnts.values()) for delta, v in cnts.items()}
             for k, cnts in inter_arrival_counts.items()
         }
 
@@ -136,47 +132,64 @@ class HeatmapGenerator(IGenerator):
         original_duration_ms = model['total_duration_ms']
         interval_size = float(self.interval)
 
+        scaling_factor = 1.0
+        is_stretching = False
+        if self.time_expansion_strategy == 'stretch' and self.simulation_duration_ms > original_duration_ms:
+            if original_duration_ms > 0: # Evita divisão por zero
+                scaling_factor = self.simulation_duration_ms / original_duration_ms
+            is_stretching = True
+
         while current_time_ms < self.simulation_duration_ms:
-            if self.time_expansion_strategy == 'stretch' and self.simulation_duration_ms > original_duration_ms:
-                stretch_ratio = original_duration_ms / self.simulation_duration_ms
-                mapped_time_ms = current_time_ms * stretch_ratio
-                percentage_complete = (mapped_time_ms / original_duration_ms) * 100
+            percentage_complete = 0.0
+            # --- LÓGICA DE MAPEAMENTO DE TEMPO (Usa scaling_factor) ---
+            if is_stretching:
+                # Mapeia o tempo atual para o tempo proporcional no log original
+                # Evita divisão por zero se scaling_factor for 1.0 (não deveria acontecer aqui, mas é seguro)
+                mapped_time_ms = current_time_ms / scaling_factor if scaling_factor != 0 else current_time_ms
+                # Garante que mapped_time_ms não exceda a duração original (importante para o cálculo do percentual)
+                mapped_time_ms = min(mapped_time_ms, original_duration_ms) 
+                percentage_complete = (mapped_time_ms / original_duration_ms) * 100 if original_duration_ms > 0 else 0
             else: # Padrão é 'cyclic'
-                percentage_complete = (current_time_ms % original_duration_ms) / original_duration_ms * 100
+                percentage_complete = (current_time_ms % original_duration_ms) / original_duration_ms * 100 if original_duration_ms > 0 else 0
+
+            # Garante que percentage_complete não seja >= 100 para evitar erros de índice
+            if percentage_complete >= 100:
+                percentage_complete = 99.99999999 
 
             interval_start = int(percentage_complete // interval_size) * interval_size
 
             valid_intervals = list(model['heatmap'].keys())
-            while interval_start not in valid_intervals and interval_start > 0:
+            # Lógica de fallback robusta
+            original_interval_start = interval_start
+            while interval_start not in valid_intervals:
                 interval_start -= int(interval_size)
-            if not valid_intervals: continue
-            if interval_start not in valid_intervals:
-                interval_start = min(valid_intervals)
+                if interval_start < 0: # Se não encontrar voltando, pega o primeiro válido
+                    interval_start = min(valid_intervals) if valid_intervals else -1
+                    break
+            if interval_start == -1 or not valid_intervals: continue # Pula se não houver intervalos válidos
 
-            # --- SORTEIO EM DUAS ETAPAS: OP_TYPE -> TARGET ---
             action_dist = model['heatmap'][interval_start]
             op_type = random.choices(list(action_dist.keys()), list(action_dist.values()))[0]
 
             target_dist = model['target_probabilities_by_op'][interval_start].get(op_type)
-            if not target_dist: continue # Pula se não houver alvos aprendidos para esta operação neste intervalo
+            if not target_dist: continue 
             target = random.choices(list(target_dist.keys()), list(target_dist.values()))[0]
-
+            
             semantic_type_list = model['op_semantics'][op_type]
 
-            # --- LÓGICA DE CREATE/UPDATE/DELETE BASEADA EM ESTADO ---
             is_create_update = "CREATE" in semantic_type_list and "UPDATE" in semantic_type_list
             if is_create_update:
                 if target not in available_pool:
-                    available_pool.add(target) # CREATE implícito
+                    available_pool.add(target) 
 
             elif "READ" in semantic_type_list:
-                if target not in available_pool: continue # Não pode ler uma chave que ainda não foi criada
+                if target not in available_pool: continue 
 
             elif "DELETE" in semantic_type_list:
                 if target in available_pool:
                     available_pool.remove(target)
                 else:
-                    continue # Não pode deletar uma chave que não existe
+                    continue
 
             new_raw_args = self.parser.generate_args(op_type, target, available_pool=list(available_pool))
 
@@ -190,8 +203,8 @@ class HeatmapGenerator(IGenerator):
             ))
 
             delta_dist = model['inter_arrival_probabilities'][interval_start]
-            delta_ms = random.choices(list(delta_dist.keys()), list(delta_dist.values()))[0]
-            current_time_ms += delta_ms
+            delta_ms_original = random.choices(list(delta_dist.keys()), list(delta_dist.values()))[0]
+            current_time_ms += delta_ms_original
 
         print(f"Synthesis complete. Generated {len(synthetic_events)} events.")
         return synthetic_events

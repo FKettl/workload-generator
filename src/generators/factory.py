@@ -31,11 +31,13 @@ class GeneratorFactory:
 
             interval = config.get('percentage_interval', 5)
             simulation_duration_s = config.get('simulation_duration_s', 30)
+            time_expansion_strategy = config.get('time_expansion_strategy', 'cyclic')
 
             return HeatmapGenerator(
                 parser=parser,
                 percentage_interval=interval,
-                simulation_duration_s=simulation_duration_s
+                simulation_duration_s=simulation_duration_s,
+                time_expansion_strategy=time_expansion_strategy 
             )
         else:
             raise ValueError(f"Generator type '{generator_type}' is not supported.")
