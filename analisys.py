@@ -97,43 +97,53 @@ def calculate_metrics(df: pd.DataFrame, name: str):
     print("-" * 30)
 
 
-def plot_combined_comparisons(logs: Dict[str, Optional[pd.DataFrame]], experiment_name: str, path):
+# ==============================================================================
+# COLE ESTE CÓDIGO NO LUGAR DA SUA FUNÇÃO plot_combined_comparisons
+# ==============================================================================
+
+def plot_combined_comparisons(logs: Dict[str, Optional[pd.DataFrame]], experiment_name: str, path, valor):
     """
     Gera e salva UMA figura contendo os 4 gráficos comparativos
     para os logs analisados (Inicial, Gerado, Recebido).
-    
-    --- MODIFICADO para melhor visibilidade de sobreposição ---
+
+    --- ATUALIZADO para fontes maiores ---
+    --- ATUALIZADO para estilos de linha (Laranja tracejado, Verde pontilhado) ---
     """
     print(f"\nGerando gráfico combinado para o experimento: {experiment_name}...")
 
-    # --- NOVO: Mapa de estilos para controlar a visualização ---
-    # Define estilos específicos para cada log para resolver a sobreposição
+    # --- Definição de Fontes ---
+    TITLE_FONTSIZE = 18       # Título principal da figura
+    SUBPLOT_TITLE_FONTSIZE = 16 # Títulos dos 4 subplots
+    AXIS_LABEL_FONTSIZE = 14  # Labels 'Tempo (ms)', 'Proporção', etc.
+    LEGEND_FONTSIZE = 12      # Legenda (Inicial, Gerado, Recebido)
+    TICK_LABEL_FONTSIZE = 12  # Números nos eixos (0.0, 0.2, 10-1, etc.)
+    # --- FIM DA ADIÇÃO ---
+
+
+    # --- ATUALIZADO: Mapa de estilos com linha pontilhada para 'Recebido' ---
     style_map = {
         'Inicial': {
             'color': 'C0', # Azul
             'hist_kwargs': {'alpha': 0.6, 'histtype': 'bar'},
-            'line_kwargs': {'linestyle': '-', 'alpha': 0.7, 'linewidth': 1.5}
+            'line_kwargs': {'linestyle': '-', 'alpha': 0.7, 'linewidth': 1.5} # Sólido
         },
         'Gerado': {
             'color': 'C1', # Laranja
-            'hist_kwargs': {'alpha': 0.9, 'histtype': 'step', 'linewidth': 2.0}, # Contorno
-            'line_kwargs': {'linestyle': '--', 'alpha': 1.0, 'linewidth': 2.0} # Tracejado e grosso
+            'hist_kwargs': {'alpha': 0.9, 'histtype': 'step', 'linewidth': 2.0},
+            'line_kwargs': {'linestyle': '--', 'alpha': 1.0, 'linewidth': 2.0} # Traços espaçados
         },
         'Recebido': {
             'color': 'C2', # Verde
-            'hist_kwargs': {'alpha': 0.9, 'histtype': 'step', 'linewidth': 1.5}, # Contorno
-            'line_kwargs': {'linestyle': '-', 'alpha': 0.9, 'linewidth': 1.5} # Sólido
+            'hist_kwargs': {'alpha': 0.9, 'histtype': 'step', 'linewidth': 2.0},
+            'line_kwargs': {'linestyle': ':', 'alpha': 1.0, 'linewidth': 2.0} # ALTERADO: Pontilhado de bolinhas
         }
     }
-    # Estilo padrão caso um nome de log não esteja no mapa
     default_style = style_map['Inicial']
-    # --- FIM DA ADIÇÃO ---
+    # --- FIM DA ATUALIZAÇÃO DO MAPA DE ESTILOS ---
 
 
     # Cria a grade 2x2 de subplots
-    fig, axes = plt.subplots(2, 2, figsize=(16, 12)) 
-    fig.suptitle(f'Análise Comparativa - Experimento: {experiment_name}', fontsize=16)
-
+    fig, axes = plt.subplots(2, 2, figsize=(16, 12))
     # --- Gráfico 1: Comparação da Proporção de Comandos (axes[0, 0]) ---
     ax1 = axes[0, 0]
     all_commands = set()
@@ -149,13 +159,17 @@ def plot_combined_comparisons(logs: Dict[str, Optional[pd.DataFrame]], experimen
         df_proportions = pd.DataFrame({
             name: df['command'].value_counts(normalize=True) for name, df in valid_logs_g1.items()
         }).fillna(0)
-        
-        # --- MODIFICADO: Adiciona 'edgecolor' para melhor distinção ---
-        df_proportions.plot(kind='bar', ax=ax1, title='Proporção de Comandos', 
+
+        df_proportions.plot(kind='bar', ax=ax1,
                             edgecolor='black', linewidth=0.7)
-        ax1.set_ylabel('Proporção')
-        ax1.tick_params(axis='x', rotation=45, labelsize=8)
-        ax1.legend(fontsize=9)
+
+        # Fontes G1
+        ax1.set_title('Proporção de Comandos', fontsize=SUBPLOT_TITLE_FONTSIZE)
+        ax1.set_ylabel('Proporção', fontsize=AXIS_LABEL_FONTSIZE)
+        ax1.set_xlabel('command', fontsize=AXIS_LABEL_FONTSIZE)
+        ax1.tick_params(axis='x', rotation=45, labelsize=TICK_LABEL_FONTSIZE)
+        ax1.tick_params(axis='y', labelsize=TICK_LABEL_FONTSIZE)
+        ax1.legend(fontsize=LEGEND_FONTSIZE)
 
     # --- Gráfico 2: Distribuição dos Tempos de Chegada (Histograma Log) (axes[0, 1]) ---
     ax2 = axes[0, 1]
@@ -165,37 +179,35 @@ def plot_combined_comparisons(logs: Dict[str, Optional[pd.DataFrame]], experimen
             inter_arrival_data = df['inter_arrival_ms'].dropna()
             inter_arrival_data = inter_arrival_data[inter_arrival_data > 0]
             if not inter_arrival_data.empty:
-                 min_val = np.log10(inter_arrival_data.min()) if inter_arrival_data.min() > 0 else -6 
-                 max_val = np.log10(inter_arrival_data.max()) if inter_arrival_data.max() > 0 else 5 
+                 min_val = np.log10(inter_arrival_data.min()) if inter_arrival_data.min() > 0 else -6
+                 max_val = np.log10(inter_arrival_data.max()) if inter_arrival_data.max() > 0 else 5
 
                  if np.isfinite(min_val) and np.isfinite(max_val) and max_val > min_val:
-                     bins = np.logspace(min_val, max_val, 50)
-                     
-                     # --- MODIFICADO: Usa o style_map para plotar ---
-                     style = style_map.get(name, default_style)
-                     ax2.hist(inter_arrival_data, bins=bins, label=name, density=True,
-                              color=style['color'], 
-                              **style['hist_kwargs']) # Desempacota os kwargs (histtype, alpha, etc)
-                     plot_successful_g2 = True
-                     
+                    bins = np.logspace(min_val, max_val, 50)
+                    style = style_map.get(name, default_style)
+                    ax2.hist(inter_arrival_data, bins=bins, label=name, density=True,
+                             color=style['color'],
+                             **style['hist_kwargs'])
+                    plot_successful_g2 = True
                  elif not inter_arrival_data.empty:
-                      # Fallback para escala linear
-                      style = style_map.get(name, default_style)
-                      ax2.hist(inter_arrival_data, bins=10, label=f"{name} (linear)", density=True,
-                               color=style['color'],
-                               **style['hist_kwargs'])
-                      print(f"Aviso: Usando escala linear para hist de '{name}' devido a dados limitados.")
-                      plot_successful_g2 = True
+                    style = style_map.get(name, default_style)
+                    ax2.hist(inter_arrival_data, bins=10, label=f"{name} (linear)", density=True,
+                             color=style['color'],
+                             **style['hist_kwargs'])
+                    print(f"Aviso: Usando escala linear para hist de '{name}' devido a dados limitados.")
+                    plot_successful_g2 = True
 
     if not plot_successful_g2:
          ax2.text(0.5, 0.5, 'Sem dados para plotar', horizontalalignment='center', verticalalignment='center', transform=ax2.transAxes)
          print("Aviso: Não há dados válidos para gerar o histograma de tempos de chegada.")
     else:
         ax2.set_xscale('log')
-        ax2.set_title('Distribuição Tempos Chegada (Escala Log)')
-        ax2.set_xlabel('Tempo (ms)')
-        ax2.set_ylabel('Densidade de Probabilidade')
-        ax2.legend(fontsize=9)
+        # Fontes G2
+        ax2.set_title('Distribuição Tempos Chegada (Escala Log)', fontsize=SUBPLOT_TITLE_FONTSIZE)
+        ax2.set_xlabel('Tempo (ms)', fontsize=AXIS_LABEL_FONTSIZE)
+        ax2.set_ylabel('Densidade de Probabilidade', fontsize=AXIS_LABEL_FONTSIZE)
+        ax2.tick_params(axis='both', which='major', labelsize=TICK_LABEL_FONTSIZE)
+        ax2.legend(fontsize=LEGEND_FONTSIZE)
 
     # --- Gráfico 3: Operações ao Longo do Tempo (axes[1, 0]) ---
     ax3 = axes[1, 0]
@@ -212,7 +224,7 @@ def plot_combined_comparisons(logs: Dict[str, Optional[pd.DataFrame]], experimen
             if duration > max_duration:
                 max_duration = duration
         if max_duration == 0 and any(df is not None and not df.empty for df in valid_logs_g3.values()):
-            max_duration = 1 
+            max_duration = 1
 
         for name, df in valid_logs_g3.items():
             relative_time = df['timestamp'] - df['timestamp'].iloc[0]
@@ -220,19 +232,19 @@ def plot_combined_comparisons(logs: Dict[str, Optional[pd.DataFrame]], experimen
             full_index = pd.RangeIndex(start=0, stop=max_duration + 1)
             ops_over_time = ops_counts.reindex(full_index, fill_value=0)
             if not ops_over_time.empty:
-                 
-                 # --- MODIFICADO: Usa o style_map para plotar ---
-                 style = style_map.get(name, default_style)
-                 ax3.plot(ops_over_time.index, ops_over_time.values, label=name,
-                          color=style['color'],
-                          **style['line_kwargs']) # Desempacota os kwargs (linestyle, alpha, etc)
-                 plot_successful_g3 = True
-        
+                style = style_map.get(name, default_style)
+                ax3.plot(ops_over_time.index, ops_over_time.values, label=name,
+                         color=style['color'],
+                         **style['line_kwargs'])
+                plot_successful_g3 = True
+
         if plot_successful_g3:
-             ax3.set_title('Operações por Segundo')
-             ax3.set_xlabel('Tempo (segundos)')
-             ax3.set_ylabel('Número de Operações')
-             ax3.legend(fontsize=9)
+             # Fontes G3
+             ax3.set_title('Operações por Segundo', fontsize=SUBPLOT_TITLE_FONTSIZE)
+             ax3.set_xlabel('Tempo (segundos)', fontsize=AXIS_LABEL_FONTSIZE)
+             ax3.set_ylabel('Número de Operações', fontsize=AXIS_LABEL_FONTSIZE)
+             ax3.tick_params(axis='both', labelsize=TICK_LABEL_FONTSIZE)
+             ax3.legend(fontsize=LEGEND_FONTSIZE)
         else:
              ax3.text(0.5, 0.5, 'Sem dados para plotar', horizontalalignment='center', verticalalignment='center', transform=ax3.transAxes)
              print("Aviso: Não há dados válidos para gerar o gráfico de operações ao longo do tempo.")
@@ -248,38 +260,42 @@ def plot_combined_comparisons(logs: Dict[str, Optional[pd.DataFrame]], experimen
                 cumulative_counts = target_counts.cumsum()
                 normalized_cumulative_freq = cumulative_counts / cumulative_counts.iloc[-1]
                 normalized_rank = np.arange(1, len(target_counts) + 1) / len(target_counts)
-                
-                # --- MODIFICADO: Usa o style_map para plotar ---
+
                 style = style_map.get(name, default_style)
                 ax4.plot(normalized_rank, normalized_cumulative_freq.values, label=name,
                          color=style['color'],
-                         **style['line_kwargs']) # Desempacota os kwargs (linestyle, alpha, etc)
+                         **style['line_kwargs'])
                 plot_successful_g4 = True
 
     if not plot_successful_g4:
         ax4.text(0.5, 0.5, 'Sem dados para plotar', horizontalalignment='center', verticalalignment='center', transform=ax4.transAxes)
         print("Erro: Nenhum dado válido encontrado para plotar a CDF de acesso aos recursos.")
     else:
-        ax4.set_title('CDF Acesso a Recursos')
-        ax4.set_xlabel('Proporção Recursos (Popularidade)')
-        ax4.set_ylabel('Proporção Cumulativa Acessos')
+        # Fontes G4
+        ax4.set_title('CDF Acesso a Recursos', fontsize=SUBPLOT_TITLE_FONTSIZE)
+        ax4.set_xlabel('Proporção Recursos (Popularidade)', fontsize=AXIS_LABEL_FONTSIZE)
+        ax4.set_ylabel('Proporção Cumulativa Acessos', fontsize=AXIS_LABEL_FONTSIZE)
         ax4.grid(True, linestyle='--', alpha=0.6)
-        ax4.legend(fontsize=9)
+        ax4.legend(fontsize=LEGEND_FONTSIZE)
         ax4.axhline(0.8, color='grey', linestyle=':', linewidth=0.8)
         ax4.axvline(0.2, color='grey', linestyle=':', linewidth=0.8)
         ax4.set_xlim(0, 1)
         ax4.set_ylim(0, 1)
+        ax4.tick_params(axis='both', labelsize=TICK_LABEL_FONTSIZE)
 
     # Ajusta espaçamento geral e salva a figura combinada
-    plt.tight_layout(rect=[0, 0.03, 1, 0.97]) 
-    
+    plt.tight_layout(rect=[0, 0.03, 1, 0.97])
+
     # Cria um nome de arquivo seguro
     safe_exp_name = "".join(c if c.isalnum() else "_" for c in experiment_name)
-    output_filename = f'{path}/comparacao_combinada_{safe_exp_name}.png'
+    output_filename = f'{path}/test{valor}.png'
     plt.savefig(output_filename)
     print(f"Salvo: {output_filename}")
     plt.close(fig) # Fecha a figura
 
+# ==============================================================================
+# FIM DA FUNÇÃO
+# ==============================================================================
 if __name__ == '__main__':
     # --- DEFINA O NOME DO EXPERIMENTO ATUAL ---
     # Exemplos: 'Replay', 'Heatmap_1pct_Original', 'Heatmap_25pct_Original', 'Heatmap_1pct_Double_Cyclic', etc.
@@ -313,6 +329,6 @@ if __name__ == '__main__':
             calculate_metrics(df, f"{current_experiment_name} - {name}") # Adiciona nome do exp às métricas
 
         # Gera o gráfico combinado
-        plot_combined_comparisons(logs_data, current_experiment_name, f'logs/output/test{x}')
+        plot_combined_comparisons(logs_data, current_experiment_name, f'logs/output/test{x}', x)
 
     print(f"\n=== Análise concluída para o experimento: {current_experiment_name} ===")
