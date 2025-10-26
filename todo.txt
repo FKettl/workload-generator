@@ -4,3 +4,4 @@
 -- expand/cycle
 -- heatmap de keys
 sudo docker exec -it meu-tcc-redis redis-cli
+sudo docker exec -i meu-tcc-redis redis-cli MONITOR > ./test2/redis_monitor_received.log
