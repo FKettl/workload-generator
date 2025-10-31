@@ -132,7 +132,7 @@ int main() {
             trace_start_timestamp = parsed_task.original_timestamp;
         }
         
-        long long relative_ns = static_cast<long long>((parsed_task.original_timestamp - trace_start_timestamp) * 1e6);
+        long long relative_ns = static_cast<long long>((parsed_task.original_timestamp - trace_start_timestamp) * 1e9);
         auto target_time = benchmark_start + std::chrono::nanoseconds(relative_ns);
 
         Task_Worker worker_task = {target_time, parsed_task.command};
