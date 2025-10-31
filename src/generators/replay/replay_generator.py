@@ -11,12 +11,6 @@ class ReplayGenerator(IGenerator):
     def generate(self, events: List[FEIEvent]) -> List[FEIEvent]:
         """
         Returns the input list of events without modification.
-
-        Args:
-            events: The list of input FEIEvent objects.
-
-        Returns:
-            The same list of FEIEvent objects.
         """
         print(f"ReplayGenerator: Passing through {len(events)} events.")
         return events

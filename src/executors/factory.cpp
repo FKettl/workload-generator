@@ -26,5 +26,5 @@ std::unique_ptr<IExecutorStrategy> ExecutorFactory::create(const std::string& ty
         }
     #endif
 
-    throw std::runtime_error("Tipo de executor desconhecido ou não compilado: " + type);
+    throw std::runtime_error("Executor type not recognized " + type);
 }

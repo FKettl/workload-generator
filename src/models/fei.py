@@ -6,7 +6,7 @@ class FEIEvent(TypedDict):
     Defines the structure of the Intermediate Event Format (FEI).
 
     This is the canonical data structure that connects the different stages
-    of the Python pipeline (Parser, Generator, etc.).
+    of the Python pipeline (Parser and Generator).
     """
     timestamp: float
     client_id: str

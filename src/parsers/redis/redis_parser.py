@@ -90,15 +90,12 @@ class RedisParser(IParser):
             return None
 
     def _dispatch_args(self, op_type, all_args):
-        """Determines target and raw_args based on the operation type."""
         target = all_args[1] if len(all_args) > 1 else ""
         raw_args = all_args[2:]
         return target, raw_args
 
     def format(self, event: FEIEvent) -> str:
         def escape_arg(arg: str) -> str:
-            # A lógica de escape é crucial para a saída.
-            # Primeiro escapa as barras, depois as aspas.
             return f'"{arg}"'
 
         command_parts = [escape_arg(event["op_type"]), escape_arg(event["target"])]
@@ -129,7 +126,6 @@ class RedisParser(IParser):
 
     def _generate_thrash_string(self, length: int) -> str:
         """Generates a random string, allowing all characters."""
-        # Now allows all characters, as the format() method handles escaping.
         chars = string.ascii_letters + string.digits + string.punctuation + ' '
         return ''.join(random.choice(chars) for _ in range(length)).replace('"', "'").replace(' ', '_')
 

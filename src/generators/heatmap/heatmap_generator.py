@@ -21,7 +21,7 @@ class HeatmapGenerator(IGenerator):
         time_expansion_strategy: str = 'cyclic'
     ):
         if not (0 < percentage_interval <= 100):
-            raise ValueError(f"O intervalo percentual deve estar entre 0 (exclusivo) e 100.: {percentage_interval}")
+            raise ValueError(f"The interval must be between 0 and 100.: {percentage_interval}")
         if time_expansion_strategy not in ['cyclic', 'stretch']:
             raise ValueError(f"time_expansion_strategy must be 'cyclic' or 'stretch', not '{time_expansion_strategy}'")
 
@@ -37,10 +37,6 @@ class HeatmapGenerator(IGenerator):
         return synthetic_events
 
     def _characterize(self, events: List[FEIEvent]) -> Dict[str, Any]:
-        """
-        Analisa o rastro real, aprendendo a probabilidade de recursos DADO
-        um tipo de operação e um intervalo de tempo, usando um índice inteiro.
-        """
         print("--- Characterization Phase: Building model with command-specific resource patterns ---")
         if not events:
             raise ValueError("Cannot characterize an empty list of events.")
@@ -70,7 +66,6 @@ class HeatmapGenerator(IGenerator):
             if percentage_complete >= 100:
                 percentage_complete = Decimal("99.9999999999")
 
-            # --- CORREÇÃO: Usa um índice de intervalo inteiro como chave ---
             interval_index = int(percentage_complete // self.interval)
             
             op_type = current_event['op_type']
@@ -85,8 +80,7 @@ class HeatmapGenerator(IGenerator):
             all_client_ids.add(current_event['client_id'])
             if op_type not in all_op_semantics:
                 all_op_semantics[op_type] = current_event['semantic_type']
-    
-        # A conversão para probabilidades agora usa as chaves inteiras diretamente
+
         heatmap_probabilities = {}
         for interval_idx, op_data in target_counts.items():
             total_ops_in_interval = sum(sum(op.values()) for op in op_data.values())
@@ -123,20 +117,16 @@ class HeatmapGenerator(IGenerator):
         }
 
     def _synthesize(self, model: Dict[str, Any]) -> List[FEIEvent]:
-        """Sintetiza um novo traço de eventos usando modelos de probabilidade localizados e por comando."""
         print(f"--- Synthesis Phase: Generating events for {self.simulation_duration_ms / 1000}s (strategy: {self.time_expansion_strategy}) ---")
         synthetic_events: List[FEIEvent] = []
         available_pool: Set[str] = set()
 
-        # --- Garante a mesma precisão da caracterização ---
         getcontext().prec = 28
-        
-        # --- CORREÇÃO: Inicializa todas as variáveis de tempo como Decimal ---
+
         current_time_ms = Decimal("0.0")
         original_duration_ms = Decimal(str(model['total_duration_ms']))
         simulation_duration_ms = Decimal(str(self.simulation_duration_ms))
-        
-        # --- CORREÇÃO: Usa self.interval (que já é Decimal) diretamente ---
+
         interval_size = self.interval 
 
         scaling_factor = Decimal("1.0")
@@ -146,7 +136,6 @@ class HeatmapGenerator(IGenerator):
                 scaling_factor = simulation_duration_ms / original_duration_ms
             is_stretching = True
 
-        # Pre-calcula as chaves válidas
         valid_intervals = set(model['heatmap'].keys())
         if not valid_intervals:
             print("Synthesis warning: Model heatmap is empty. No events will be generated.")
@@ -156,35 +145,28 @@ class HeatmapGenerator(IGenerator):
 
         while current_time_ms < simulation_duration_ms:
             percentage_complete = Decimal("0.0")
-            
-            # --- CORREÇÃO: LÓGICA DE MAPEAMENTO DE TEMPO (Usa Decimal) ---
+
             if original_duration_ms == 0:
-                percentage_complete = Decimal("0.0") # Evita divisão por zero
+                percentage_complete = Decimal("0.0")
             elif is_stretching:
                 mapped_time_ms = current_time_ms / scaling_factor
                 mapped_time_ms = min(mapped_time_ms, original_duration_ms) 
                 percentage_complete = (mapped_time_ms / original_duration_ms) * 100
-            else: # Padrão é 'cyclic'
-                # Evita divisão por zero se original_duration_ms for 0 (já tratado acima)
+            else:
                 mapped_time_ms = current_time_ms % original_duration_ms
                 percentage_complete = (mapped_time_ms / original_duration_ms) * 100
 
-            # --- CORREÇÃO: Garante que percentage_complete não seja >= 100 (usando Decimal) ---
             if percentage_complete >= 100:
                 percentage_complete = Decimal("99.999999999999") 
 
-            # --- CORREÇÃO: Calcula o ÍNDICE (int) usando aritmética Decimal ---
             interval_start = int(percentage_complete // interval_size)
             
-            # Lógica de fallback robusta (agora usando 'set' para busca O(1))
             while interval_start not in valid_intervals:
-                interval_start -= 1 # Volta um índice de cada vez
+                interval_start -= 1
                 if interval_start < 0:
-                    # Se não encontrar voltando, pega o primeiro válido
                     interval_start = first_valid_interval
                     break
-            
-            # Pula se o heatmap para este intervalo estiver vazio (não deveria acontecer se o fallback funcionar)
+
             action_dist = model['heatmap'].get(interval_start)
             if not action_dist:
                 continue
@@ -193,7 +175,6 @@ class HeatmapGenerator(IGenerator):
 
             target_dist = model['target_probabilities_by_op'].get(interval_start, {}).get(op_type)
             if not target_dist: 
-                # Fallback: Tenta encontrar este op_type em qualquer intervalo anterior
                 found_fallback = False
                 for i in range(interval_start - 1, -1, -1):
                     target_dist = model['target_probabilities_by_op'].get(i, {}).get(op_type)
@@ -201,7 +182,7 @@ class HeatmapGenerator(IGenerator):
                         found_fallback = True
                         break
                 if not found_fallback:
-                    continue # Não há modelo para este op_type em nenhum lugar
+                    continue
             
             target = random.choices(list(target_dist.keys()), list(target_dist.values()))[0]
             
@@ -213,26 +194,19 @@ class HeatmapGenerator(IGenerator):
                     available_pool.add(target) 
 
             elif "READ" in semantic_type_list:
-                if not available_pool: continue # Não há nada para ler
-                if target not in available_pool:
-                    # Se o alvo específico não estiver disponível, mas outros estiverem,
-                    # podemos escolher um alvo aleatório disponível para simular a leitura.
-                    # Isso é opcional, mas torna a simulação mais robusta.
-                    # Se quisermos ser estritos (ler apenas o 'target' do modelo), usamos 'continue'
-                    # target = random.choice(list(available_pool))
-                    continue # Estrito: O alvo modelado DEVE existir.
+                if not available_pool: continue
+                if target not in available_pool: continue
 
             elif "DELETE" in semantic_type_list:
                 if target in available_pool:
                     available_pool.remove(target)
                 else:
-                    # O alvo modelado para exclusão não existe
                     continue
 
             new_raw_args = self.parser.generate_args(op_type, target, available_pool=list(available_pool))
 
             synthetic_events.append(FEIEvent(
-                timestamp=(float(current_time_ms) / 1000.0), # Converte para float apenas na saída
+                timestamp=(float(current_time_ms) / 1000.0),
                 client_id=random.choice(model['client_ids']),
                 op_type=op_type,
                 semantic_type=semantic_type_list,
@@ -241,7 +215,6 @@ class HeatmapGenerator(IGenerator):
             ))
 
             delta_dist = model['inter_arrival_probabilities'].get(interval_start)
-            # Fallback para inter-arrival
             if not delta_dist:
                 found_fallback = False
                 for i in range(interval_start - 1, -1, -1):
@@ -250,11 +223,9 @@ class HeatmapGenerator(IGenerator):
                         found_fallback = True
                         break
                 if not found_fallback:
-                     delta_dist = model['inter_arrival_probabilities'][first_valid_interval] # Pega o primeiro como último recurso
+                     delta_dist = model['inter_arrival_probabilities'][first_valid_interval]
 
             delta_ms_original = random.choices(list(delta_dist.keys()), list(delta_dist.values()))[0]
-            
-            # --- CORREÇÃO: Avança o tempo usando Decimal ---
             current_time_ms += Decimal(str(delta_ms_original))
 
         print(f"Synthesis complete. Generated {len(synthetic_events)} events.")

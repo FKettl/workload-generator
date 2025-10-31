@@ -1,42 +1,31 @@
-# analise_experimentos.py
-
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import re
-from typing import Optional, Tuple, Dict, List # Import Dict, List
+from typing import Optional, Dict
 
-# Regex ATUALIZADO para capturar o target (primeiro argumento entre aspas após o comando)
 LOG_REGEX = re.compile(
     r'^(?P<timestamp>\d+\.\d+)\s+'
     r'\[(?P<db>\d+)\s+(?P<client_ip>[^\]]+)\]\s+'
     r'"(?P<command>\w+)"'
-    r'(?:\s+"(?P<target>[^"]*)")?' # Captura opcional do primeiro argumento como target
-    r'(?P<other_args>.*)?$' # Restante (não usado aqui)
+    r'(?:\s+"(?P<target>[^"]*)")?'
+    r'(?P<other_args>.*)?$'
 )
 
 def parse_log_to_dataframe(filepath: str) -> Optional[pd.DataFrame]:
-    """Lê um arquivo de log e o converte para um DataFrame do Pandas, incluindo o target."""
     records = []
-    print(f"Analisando o arquivo: {filepath}...")
     try:
         with open(filepath, 'r', encoding='utf-8') as f:
             for line_num, line in enumerate(f, 1):
                 match = LOG_REGEX.match(line.strip())
                 if match:
                     data = match.groupdict()
-                    # Inclui apenas eventos que possuem um target identificado
-                    # e ignora comandos como CLIENT que não são relevantes para workload
                     if data['target'] and data['command'].upper() != 'CLIENT':
                         records.append({
                             'timestamp': float(data['timestamp']),
                             'command': data['command'].upper(),
-                            'target': data['target'] # <- NOVO CAMPO EXTRAÍDO
+                            'target': data['target']
                         })
-                # Opcional: Adicionar um else para logar linhas não reconhecidas, se necessário
-                # else:
-                #     if line.strip(): # Ignora linhas em branco
-                #         print(f"[WARN] Linha {line_num} não correspondeu ao padrão regex: {line.strip()}")
 
         if not records:
             print(f"AVISO: Nenhum registro válido com target encontrado em {filepath}.")
@@ -44,9 +33,7 @@ def parse_log_to_dataframe(filepath: str) -> Optional[pd.DataFrame]:
 
         df = pd.DataFrame(records)
         df = df.sort_values(by='timestamp').reset_index(drop=True)
-        # Calcula o tempo entre as ações (inter-arrival time) em milissegundos
         df['inter_arrival_ms'] = df['timestamp'].diff() * 1000
-        # Remove a primeira linha NaN criada por diff()
         df = df.iloc[1:]
         return df
     except FileNotFoundError:
@@ -58,7 +45,6 @@ def parse_log_to_dataframe(filepath: str) -> Optional[pd.DataFrame]:
 
 
 def calculate_metrics(df: pd.DataFrame, name: str):
-    """Calcula e imprime as métricas estatísticas para um DataFrame."""
     if df is None or df.empty:
         print(f"\n--- Métricas para {name} ---")
         print("DataFrame vazio, não foi possível calcular as métricas.")
@@ -77,11 +63,9 @@ def calculate_metrics(df: pd.DataFrame, name: str):
     print(f"Total de Operações (análise): {total_ops}")
     print(f"Vazão (Throughput): {throughput:.2f} ops/segundo")
 
-    # Calcula percentis apenas se houver dados de inter_arrival_ms
     inter_arrival_data = df['inter_arrival_ms'].dropna()
     if not inter_arrival_data.empty:
         print("\nPercentis de Tempo entre Ações (ms):")
-        # Mostra mais percentis relevantes
         print(inter_arrival_data.describe(percentiles=[.5, .75, .9, .95, .99, .999]))
     else:
         print("\nPercentis de Tempo entre Ações (ms): Não há dados suficientes.")
@@ -96,19 +80,7 @@ def calculate_metrics(df: pd.DataFrame, name: str):
 
     print("-" * 30)
 
-
-# ==============================================================================
-# COLE ESTE CÓDIGO NO LUGAR DA SUA FUNÇÃO plot_combined_comparisons
-# ==============================================================================
-
 def plot_combined_comparisons(logs: Dict[str, Optional[pd.DataFrame]], experiment_name: str, path, valor):
-    """
-    Gera e salva UMA figura contendo os 4 gráficos comparativos
-    para os logs analisados (Inicial, Gerado, Recebido).
-
-    --- ATUALIZADO para fontes maiores ---
-    --- ATUALIZADO para estilos de linha (Laranja tracejado, Verde pontilhado) ---
-    """
     print(f"\nGerando gráfico combinado para o experimento: {experiment_name}...")
 
     # --- Definição de Fontes ---
@@ -117,10 +89,7 @@ def plot_combined_comparisons(logs: Dict[str, Optional[pd.DataFrame]], experimen
     AXIS_LABEL_FONTSIZE = 14  # Labels 'Tempo (ms)', 'Proporção', etc.
     LEGEND_FONTSIZE = 12      # Legenda (Inicial, Gerado, Recebido)
     TICK_LABEL_FONTSIZE = 12  # Números nos eixos (0.0, 0.2, 10-1, etc.)
-    # --- FIM DA ADIÇÃO ---
 
-
-    # --- ATUALIZADO: Mapa de estilos com linha pontilhada para 'Recebido' ---
     style_map = {
         'Inicial': {
             'color': 'C0', # Azul
@@ -135,16 +104,12 @@ def plot_combined_comparisons(logs: Dict[str, Optional[pd.DataFrame]], experimen
         'Recebido': {
             'color': 'C2', # Verde
             'hist_kwargs': {'alpha': 0.9, 'histtype': 'step', 'linewidth': 2.0},
-            'line_kwargs': {'linestyle': ':', 'alpha': 1.0, 'linewidth': 2.0} # ALTERADO: Pontilhado de bolinhas
+            'line_kwargs': {'linestyle': ':', 'alpha': 1.0, 'linewidth': 2.0} # Pontilhado de bolinhas
         }
     }
     default_style = style_map['Inicial']
-    # --- FIM DA ATUALIZAÇÃO DO MAPA DE ESTILOS ---
 
-
-    # Cria a grade 2x2 de subplots
     fig, axes = plt.subplots(2, 2, figsize=(16, 12))
-    # --- Gráfico 1: Comparação da Proporção de Comandos (axes[0, 0]) ---
     ax1 = axes[0, 0]
     all_commands = set()
     plot_data_g1 = {}
@@ -293,27 +258,15 @@ def plot_combined_comparisons(logs: Dict[str, Optional[pd.DataFrame]], experimen
     print(f"Salvo: {output_filename}")
     plt.close(fig) # Fecha a figura
 
-# ==============================================================================
-# FIM DA FUNÇÃO
-# ==============================================================================
 if __name__ == '__main__':
-    # --- DEFINA O NOME DO EXPERIMENTO ATUAL ---
-    # Exemplos: 'Replay', 'Heatmap_1pct_Original', 'Heatmap_25pct_Original', 'Heatmap_1pct_Double_Cyclic', etc.
-    current_experiment_name = 'Heatmap_1pct_Double_Stretch' # <--- MUDE AQUI PARA CADA EXPERIMENTO
+    current_experiment_name = 'Heatmap_1pct_Double_Stretch'
 
-    # --- CONFIGURE OS CAMINHOS DOS ARQUIVOS AQUI ---
-    # Log original gerado pelo YCSB + MONITOR (geralmente o mesmo para todos)
     path_log_inicial = 'logs/input/trace.log'
-
-    # Log sintético gerado pela sua ferramenta (Python) - Pode mudar por experimento
-
-    # Log capturado no notebook/servidor enquanto o executor C++ rodava - MUDA POR EXPERIMENTO
-    # --- FIM DA CONFIGURAÇÃO ---
 
     print(f"=== Iniciando análise para o experimento: {current_experiment_name} ===")
     for x in range(1, 6):
-        path_log_recebido = f'logs/output/test{x}/redis_monitor_received.log' # Exemplo de nomeação
-        path_log_gerado = f'logs/output/test{x}/synthetic_trace.log' # Ou um nome específico se você salvou separadamente
+        path_log_recebido = f'logs/output/test{x}/redis_monitor_received.log'
+        path_log_gerado = f'logs/output/test{x}/synthetic_trace.log'
         df_inicial = parse_log_to_dataframe(path_log_inicial)
         df_gerado = parse_log_to_dataframe(path_log_gerado)
         df_recebido = parse_log_to_dataframe(path_log_recebido)

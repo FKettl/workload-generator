@@ -11,14 +11,7 @@ class GeneratorFactory:
         config: Dict[str, Any],
         parser: IParser
     ) -> IGenerator:
-        """
-        Creates a generator instance, injecting necessary dependencies.
 
-        Args:
-            config: The generator's specific configuration dictionary.
-            parser: A configured parser instance that will provide domain-specific
-                logic (like argument generation) to the generator.
-        """
         generator_type = config.get('type')
 
         if generator_type == 'replay':

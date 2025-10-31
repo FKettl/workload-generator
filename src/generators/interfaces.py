@@ -11,13 +11,4 @@ class IGenerator(ABC):
 
     @abstractmethod
     def generate(self, events: List[FEIEvent]) -> List[FEIEvent]:
-        """
-        Takes a list of events and returns a new, synthetic list of events.
-
-        Args:
-            events: A list of input FEIEvent objects from the parsing stage.
-
-        Returns:
-            A new list of synthetically generated FEIEvent objects.
-        """
         pass

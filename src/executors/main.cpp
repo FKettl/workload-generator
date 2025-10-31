@@ -9,15 +9,14 @@
 #include <fstream>
 #include <string>
 #include <yaml-cpp/yaml.h>
-#include <atomic> // Para contadores seguros entre threads
+#include <atomic>
 
-// A struct para a tarefa que vai para a fila das threads trabalhadoras
+
 struct Task_Worker {
     std::chrono::steady_clock::time_point target_time;
     Command command;
 };
 
-// A classe de fila segura para threads
 template <typename T>
 class ThreadSafeQueue {
 public:
@@ -39,7 +38,6 @@ private:
     std::condition_variable m_cond;
 };
 
-// A função da thread trabalhadora, que executa os comandos
 void worker_function(
     int id,
     const YAML::Node& executor_config,
@@ -78,7 +76,6 @@ void worker_function(
 }
 
 int main() {
-    // --- 1. Carregar Configuração ---
     YAML::Node config;
     try {
         config = YAML::LoadFile("../../config.yaml"); 
@@ -98,11 +95,8 @@ int main() {
         return 1;
     }
 
-    // O 'main' cria uma única instância da estratégia para usar seu método 'parse_line'.
-    // --- 2. Criar o Parser Especialista ---
     auto command_parser = ExecutorFactory::create(executor_config["type"].as<std::string>());
 
-    // --- 3. Setup das Threads ---
     const int num_workers = executor_config["max_workers"].as<int>();
     std::vector<ThreadSafeQueue<Task_Worker>> queues(num_workers);
     std::vector<std::thread> workers;
@@ -116,7 +110,6 @@ int main() {
         );
     }
 
-    // --- 4. Lógica da Gerente (Orquestrador Genérico) ---
     std::cout << "Dispatching events from synthetic log file..." << std::endl;
     auto benchmark_start = std::chrono::steady_clock::now();
     
@@ -127,7 +120,6 @@ int main() {
 
     while (std::getline(input_log_file, line)) {
         line_count++;
-        // O orquestrador DELEGA a tarefa de parsing para o especialista.
         std::optional<Task> task_opt = command_parser->parse_line(line);
         if (!task_opt) {
             std::cerr << "Warning: Skipping malformed log line " << line_count << ": " << line << std::endl;
@@ -136,15 +128,13 @@ int main() {
 
         Task parsed_task = *task_opt;
 
-        // A única responsabilidade do orquestrador é o TEMPO.
         if (trace_start_timestamp < 0) {
             trace_start_timestamp = parsed_task.original_timestamp;
         }
         
-        long long relative_ns = static_cast<long long>((parsed_task.original_timestamp - trace_start_timestamp) * 1e9);
+        long long relative_ns = static_cast<long long>((parsed_task.original_timestamp - trace_start_timestamp) * 1e6);
         auto target_time = benchmark_start + std::chrono::nanoseconds(relative_ns);
-        
-        // Cria a tarefa final para a trabalhadora com o tempo de execução calculado.
+
         Task_Worker worker_task = {target_time, parsed_task.command};
 
         queues[worker_idx % num_workers].push(worker_task);
@@ -153,7 +143,6 @@ int main() {
 
     std::cout << "Dispatching complete. " << line_count << " lines processed." << std::endl;
 
-    // --- 5. Finalização ---
     for (int i = 0; i < num_workers; ++i) {
         queues[i].push({{}, {"POISON_PILL", "", ""}});
     }
@@ -162,7 +151,6 @@ int main() {
         worker.join();
     }
 
-    // --- 6. Relatório Final Simplificado ---
     long long total_executed = success_count + error_count;
     std::cout << "\n--- EXECUTION SUMMARY ---" << std::endl;
     std::cout << "Total Operations Attempted: " << total_executed << std::endl;
