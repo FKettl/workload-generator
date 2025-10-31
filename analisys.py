@@ -80,16 +80,24 @@ def calculate_metrics(df: pd.DataFrame, name: str):
 
     print("-" * 30)
 
+
 def plot_combined_comparisons(logs: Dict[str, Optional[pd.DataFrame]], experiment_name: str, path, valor):
+    """
+    Gera e salva UMA figura contendo os 4 gráficos comparativos
+    para os logs analisados (Inicial, Gerado, Recebido).
+    """
     print(f"\nGerando gráfico combinado para o experimento: {experiment_name}...")
 
-    # --- Definição de Fontes ---
-    TITLE_FONTSIZE = 18       # Título principal da figura
-    SUBPLOT_TITLE_FONTSIZE = 16 # Títulos dos 4 subplots
-    AXIS_LABEL_FONTSIZE = 14  # Labels 'Tempo (ms)', 'Proporção', etc.
-    LEGEND_FONTSIZE = 12      # Legenda (Inicial, Gerado, Recebido)
-    TICK_LABEL_FONTSIZE = 12  # Números nos eixos (0.0, 0.2, 10-1, etc.)
+    # --- ATUALIZADO: Definição de Fontes (Valores Aumentados) ---
+    TITLE_FONTSIZE = 20       # Título principal da figura (era 18)
+    SUBPLOT_TITLE_FONTSIZE = 18 # Títulos dos 4 subplots (era 16)
+    AXIS_LABEL_FONTSIZE = 16  # Labels 'Tempo (ms)', 'Proporção', etc. (era 14)
+    LEGEND_FONTSIZE = 14      # Legenda (Inicial, Gerado, Recebido) (era 12)
+    TICK_LABEL_FONTSIZE = 14  # Números nos eixos (0.0, 0.2, 10-1, etc.) (era 12)
+    # --- FIM DA ATUALIZAÇÃO ---
 
+
+    # --- Mapa de estilos com linha pontilhada para 'Recebido' ---
     style_map = {
         'Inicial': {
             'color': 'C0', # Azul
@@ -108,8 +116,16 @@ def plot_combined_comparisons(logs: Dict[str, Optional[pd.DataFrame]], experimen
         }
     }
     default_style = style_map['Inicial']
+    # --- FIM DO MAPA DE ESTILOS ---
+
 
     fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+
+    # Fonte do Título Principal
+    # Removido título principal para dar mais espaço aos subplots e evitar sobreposição
+    # fig.suptitle(f'Análise Comparativa - Experimento: {experiment_name}', fontsize=TITLE_FONTSIZE)
+
+    # --- Gráfico 1: Comparação da Proporção de Comandos (axes[0, 0]) ---
     ax1 = axes[0, 0]
     all_commands = set()
     plot_data_g1 = {}
@@ -249,15 +265,24 @@ def plot_combined_comparisons(logs: Dict[str, Optional[pd.DataFrame]], experimen
         ax4.tick_params(axis='both', labelsize=TICK_LABEL_FONTSIZE)
 
     # Ajusta espaçamento geral e salva a figura combinada
-    plt.tight_layout(rect=[0, 0.03, 1, 0.97])
+    plt.tight_layout(rect=[0, 0.03, 1, 0.97]) # Mantido rect para margem inferior
 
     # Cria um nome de arquivo seguro
     safe_exp_name = "".join(c if c.isalnum() else "_" for c in experiment_name)
-    output_filename = f'{path}/test{valor}.png'
+    # ATENÇÃO: Verifique se o nome do arquivo deve incluir 'valor' ou 'safe_exp_name'
+    output_filename = f'{path}/test{valor}.png' # Usando 'valor' como no seu código original
+    # Alternativa: output_filename = f'{path}/comparacao_combinada_{safe_exp_name}.png'
+
     plt.savefig(output_filename)
     print(f"Salvo: {output_filename}")
     plt.close(fig) # Fecha a figura
 
+# ==============================================================================
+# FIM DA FUNÇÃO
+# ==============================================================================
+# ==============================================================================
+# FIM DA FUNÇÃO
+# ==============================================================================
 if __name__ == '__main__':
     current_experiment_name = 'Heatmap_1pct_Double_Stretch'
 
